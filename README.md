@@ -133,7 +133,7 @@ _Add any new variables here (Redis, object storage keys, etc.) as they are intro
 | `NEXT_PUBLIC_API_URL` | Backend base URL (default http://localhost:3001) |
 | `NEXT_PUBLIC_CAPTCHA_SITE_KEY` | CAPTCHA public site key |
 
-## Project Structure
+## Project Structure 
 
 ```
 lsg-org-hub/
