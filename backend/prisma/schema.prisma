@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────────── Enums ─────────────
+
+enum Role {
+  STUDENT
+  OFFICER
+  LSG_ADMIN
+}
+
+enum OrgType {
+  LSG
+  ORG
+}
+
+enum MembershipStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  WITHDRAWN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum ClearanceStatus {
+  CLEARED
+  REVOKED
+}
+
+// ───────────── Models ─────────────
+
+model College {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  name          String
+  users         User[]
+  organizations Organization[]
+  clearances    Clearance[]
+
+  @@map("colleges")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  googleId  String   @unique @map("google_id")
+  email     String   @unique
+  fullName  String   @map("full_name")
+  role      Role     @default(STUDENT)
+  collegeId String?  @map("college_id") @db.Uuid
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  college        College?        @relation(fields: [collegeId], references: [id])
+  profile        StudentProfile?
+  officerOf      OrgOfficer[]
+  memberships    Membership[]    @relation("MembershipStudent")
+  verifiedBy     Membership[]    @relation("MembershipVerifier")
+  announcements  Announcement[]
+  payments       Payment[]
+  clearances     Clearance[]     @relation("ClearanceStudent")
+  clearancesDone Clearance[]     @relation("ClearanceIssuer")
+
+  @@index([collegeId])
+  @@map("users")
+}
+
+model StudentProfile {
+  id           String  @id @default(uuid()) @db.Uuid
+  userId       String  @unique @map("user_id") @db.Uuid
+  studentNo    String? @map("student_no")
+  contactNo    String? @map("contact_no")
+  regionCode   String? @map("region_code")
+  regionName   String? @map("region_name")
+  provinceCode String? @map("province_code")
+  provinceName String? @map("province_name")
+  cityCode     String? @map("city_code")
+  cityName     String? @map("city_name")
+  barangayCode String? @map("barangay_code")
+  barangayName String? @map("barangay_name")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model Organization {
+  id          String  @id @default(uuid()) @db.Uuid
+  collegeId   String  @map("college_id") @db.Uuid
+  name        String
+  description String?
+  logoUrl     String? @map("logo_url")
+  type        OrgType @default(ORG)
+  isActive    Boolean @default(true) @map("is_active")
+
+  college       College                 @relation(fields: [collegeId], references: [id])
+  officers      OrgOfficer[]
+  requirements  MembershipRequirement[]
+  memberships   Membership[]
+  announcements Announcement[]
+  feeItems      FeeItem[]
+
+  @@index([collegeId])
+  @@map("organizations")
+}
+
+model OrgOfficer {
+  id             String @id @default(uuid()) @db.Uuid
+  userId         String @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("org_officers")
+}
+
+model MembershipRequirement {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  files        MembershipFile[]
+
+  @@index([organizationId])
+  @@map("membership_requirements")
+}
+
+model Membership {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  status         MembershipStatus @default(PENDING)
+  remarks        String?
+  verifiedById   String?          @map("verified_by") @db.Uuid
+  appliedAt      DateTime         @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  user         User             @relation("MembershipStudent", fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  verifiedBy   User?            @relation("MembershipVerifier", fields: [verifiedById], references: [id])
+  files        MembershipFile[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+model MembershipFile {
+  id            String @id @default(uuid()) @db.Uuid
+  membershipId  String @map("membership_id") @db.Uuid
+  requirementId String @map("requirement_id") @db.Uuid
+  fileUrl       String @map("file_url")
+  fileKey       String @map("file_key")
+
+  membership  Membership            @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  requirement MembershipRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId])
+  @@index([requirementId])
+  @@map("membership_files")
+}
+
+model Announcement {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  title          String
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id])
+
+  @@index([organizationId])
+  @@map("announcements")
+}
+
+model FeeItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  name           String
+  amountCentavos Int     @map("amount_centavos")
+  semester       String
+  schoolYear     String  @map("school_year")
+  isActive       Boolean @default(true) @map("is_active")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([organizationId])
+  @@map("fee_items")
+}
+
+model Payment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  userId             String        @map("user_id") @db.Uuid
+  feeItemId          String        @map("fee_item_id") @db.Uuid
+  amountCentavos     Int           @map("amount_centavos")
+  status             PaymentStatus @default(PENDING)
+  paymongoCheckoutId String?       @unique @map("paymongo_checkout_id")
+  paymongoPaymentId  String?       @map("paymongo_payment_id")
+  paidAt             DateTime?     @map("paid_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id])
+  feeItem FeeItem  @relation(fields: [feeItemId], references: [id])
+  receipt Receipt?
+
+  @@index([userId])
+  @@index([feeItemId])
+  @@map("payments")
+}
+
+model Receipt {
+  id         String  @id @default(uuid()) @db.Uuid
+  paymentId  String  @unique @map("payment_id") @db.Uuid
+  receiptNo  String  @unique @map("receipt_no")
+  receiptUrl String? @map("receipt_url")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("receipts")
+}
+
+model Clearance {
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  collegeId  String          @map("college_id") @db.Uuid
+  semester   String
+  status     ClearanceStatus @default(CLEARED)
+  issuedById String          @map("issued_by") @db.Uuid
+  issuedAt   DateTime        @default(now()) @map("issued_at") @db.Timestamptz(6)
+
+  user     User    @relation("ClearanceStudent", fields: [userId], references: [id])
+  college  College @relation(fields: [collegeId], references: [id])
+  issuedBy User    @relation("ClearanceIssuer", fields: [issuedById], references: [id])
+
+  @@index([userId])
+  @@index([collegeId])
+  @@map("clearances")
+}
