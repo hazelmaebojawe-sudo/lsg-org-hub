@@ -8,6 +8,8 @@ export class ApiError extends Error {
   }
 }
 
+type ErrorBody = { message?: string | string[] };
+
 /** Calls the NestJS API. The httpOnly login cookie is sent automatically. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -19,7 +21,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   const text = await res.text();
-  let data: any = null;
+  let data: unknown = null;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
@@ -27,9 +29,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    const message = Array.isArray(data?.message)
-      ? data.message.join('. ')
-      : (data?.message ?? 'Something went wrong. Please try again.');
+    const body = (data ?? {}) as ErrorBody;
+    const message = Array.isArray(body.message)
+      ? body.message.join('. ')
+      : (body.message ?? 'Something went wrong. Please try again.');
     throw new ApiError(res.status, message);
   }
   return data as T;
