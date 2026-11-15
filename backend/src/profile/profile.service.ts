@@ -20,7 +20,7 @@ export class ProfileService {
   }
 
   /** Register: pick a college (once) and save the PSGC address. */
-  async register(userId: string, dto: CreateProfileDto) {
+  async register(userId: string, dto: Omit<CreateProfileDto, 'captchaToken'>) {
     const college = await this.prisma.college.findUnique({
       where: { id: dto.collegeId },
     });

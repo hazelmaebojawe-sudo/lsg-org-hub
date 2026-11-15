@@ -15,6 +15,7 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { CaptchaService } from '../captcha/captcha.service';
 import { CreateProfileDto, ProfileDetailsDto } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 
@@ -22,7 +23,10 @@ import { ProfileService } from './profile.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.STUDENT)
 export class ProfileController {
-  constructor(private readonly profile: ProfileService) {}
+  constructor(
+    private readonly profile: ProfileService,
+    private readonly captcha: CaptchaService,
+  ) {}
 
   @Get()
   get(@Req() req: any) {
@@ -31,8 +35,10 @@ export class ProfileController {
 
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  register(@Req() req: any, @Body() dto: CreateProfileDto) {
-    return this.profile.register(req.user.id, dto);
+  async register(@Req() req: any, @Body() dto: CreateProfileDto) {
+    await this.captcha.verify(dto.captchaToken, req.ip); // reject bots first
+    const { captchaToken, ...data } = dto; // the token is not a database column
+    return this.profile.register(req.user.id, data);
   }
 
   @Patch()
