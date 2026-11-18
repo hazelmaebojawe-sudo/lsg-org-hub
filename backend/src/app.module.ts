@@ -2,6 +2,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -20,6 +21,7 @@ import { ProfileModule } from './profile/profile.module';
     CaptchaModule,
     CollegesModule,
     OrganizationsModule,
+    AnnouncementsModule,
     ProfileModule,
   ],
   controllers: [AppController],

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AnnouncementsSection } from '@/components/announcements-section';
 import { OrganizationsAdmin } from '@/components/organizations-admin';
 import { OrganizationsList } from '@/components/organizations-list';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,8 @@ export default function DashboardPage() {
           Sign out
         </Button>
       </header>
+
+      <AnnouncementsSection role={me.role} />
 
       {me.role === 'LSG_ADMIN' ? <OrganizationsAdmin /> : <OrganizationsList />}
     </main>

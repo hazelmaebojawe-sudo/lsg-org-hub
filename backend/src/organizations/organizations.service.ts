@@ -122,9 +122,10 @@ export class OrganizationsService {
     }
   }
 
-  /** Clear the cached list whenever organizations change. */
+    /** Clear the cached lists whenever organizations change. */
   private async invalidate(collegeId: string) {
     await this.cache.del(cacheKey(collegeId));
+    await this.cache.del(`announcements:college:${collegeId}`); // the feed shows org names and status
     this.logger.log(`cache CLEARED ${cacheKey(collegeId)}`);
   }
 }
