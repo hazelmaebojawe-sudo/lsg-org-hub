@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { OfficersPanel } from '@/components/officers-panel';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -25,7 +26,7 @@ const textareaClass =
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong.');
 
-/** LSG Admin: create, edit, deactivate and reactivate the college's organizations. */
+/** LSG Admin: create, edit, deactivate, reactivate organizations and manage their officers. */
 export function OrganizationsAdmin() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,21 +43,25 @@ export function OrganizationsAdmin() {
   const [editDescription, setEditDescription] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [officersOpenId, setOfficersOpenId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  // Reload the list after a change
+  async function load() {
     try {
       setOrgs(await listAllOrganizations());
       setError(null);
     } catch (e) {
       setError(errMsg(e));
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }
 
+  // First load: state is set inside promise callbacks
   useEffect(() => {
-    void load();
-  }, [load]);
+    listAllOrganizations()
+      .then(setOrgs)
+      .catch((e) => setError(errMsg(e)))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -185,7 +190,7 @@ export function OrganizationsAdmin() {
       <Card>
         <CardHeader>
           <CardTitle>Your college&apos;s organizations</CardTitle>
-          <CardDescription>Edit, deactivate, or reactivate organizations.</CardDescription>
+          <CardDescription>Edit, deactivate, or reactivate organizations, and assign their officers.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading && <p className="text-sm text-muted-foreground">Loading organizations...</p>}
@@ -215,41 +220,59 @@ export function OrganizationsAdmin() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-medium">{org.name}</h3>
-                      {org.type === 'LSG' && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                          LSG
-                        </span>
-                      )}
-                      {!org.isActive && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                          Deactivated
-                        </span>
+                <>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-medium">{org.name}</h3>
+                        {org.type === 'LSG' && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            LSG
+                          </span>
+                        )}
+                        {!org.isActive && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                            Deactivated
+                          </span>
+                        )}
+                      </div>
+                      {org.description && (
+                        <p className="mt-1 text-sm text-muted-foreground">{org.description}</p>
                       )}
                     </div>
-                    {org.description && (
-                      <p className="mt-1 text-sm text-muted-foreground">{org.description}</p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button size="sm" variant="outline" onClick={() => startEdit(org)}>
-                      Edit
-                    </Button>
-                    {org.type !== 'LSG' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleActive(org)}
-                        disabled={busyId === org.id}
-                      >
-                        {busyId === org.id ? 'Please wait...' : org.isActive ? 'Deactivate' : 'Reactivate'}
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      {org.isActive && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setOfficersOpenId(officersOpenId === org.id ? null : org.id)
+                          }
+                        >
+                          {officersOpenId === org.id ? 'Hide officers' : 'Officers'}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => startEdit(org)}>
+                        Edit
                       </Button>
-                    )}
+                      {org.type !== 'LSG' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleActive(org)}
+                          disabled={busyId === org.id}
+                        >
+                          {busyId === org.id
+                            ? 'Please wait...'
+                            : org.isActive
+                              ? 'Deactivate'
+                              : 'Reactivate'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  {officersOpenId === org.id && <OfficersPanel orgId={org.id} />}
+                </>
               )}
             </div>
           ))}
