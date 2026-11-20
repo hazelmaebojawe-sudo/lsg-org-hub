@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnnouncementsSection } from '@/components/announcements-section';
+import { MembershipsOfficer } from '@/components/memberships-officer';
+import { MembershipsStudent } from '@/components/memberships-student';
 import { OrganizationsAdmin } from '@/components/organizations-admin';
-import { OrganizationsList } from '@/components/organizations-list';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/use-me';
@@ -55,7 +56,14 @@ export default function DashboardPage() {
 
       <AnnouncementsSection role={me.role} />
 
-      {me.role === 'LSG_ADMIN' ? <OrganizationsAdmin /> : <OrganizationsList />}
+      {me.role === 'STUDENT' && <MembershipsStudent />}
+      {me.role === 'OFFICER' && <MembershipsOfficer />}
+      {me.role === 'LSG_ADMIN' && (
+        <>
+          <MembershipsOfficer />
+          <OrganizationsAdmin />
+        </>
+      )}
     </main>
   );
 }
