@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { RequirementDto } from './dto/membership.dto';
 import type { UploadedFileData } from './upload.types';
+import { MailService } from '../mail/mail.service';
 
 type AuthUser = { id: string; role: Role; collegeId: string | null };
 
@@ -35,6 +36,7 @@ export class MembershipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly mail: MailService,
   ) {}
 
   private requireCollege(user: AuthUser): string {
@@ -223,13 +225,19 @@ export class MembershipsService {
     });
   }
 
-  async review(
+   async review(
     user: AuthUser,
     id: string,
     decision: 'VERIFIED' | 'REJECTED',
     remarks?: string,
   ) {
-    const membership = await this.prisma.membership.findUnique({ where: { id } });
+    const membership = await this.prisma.membership.findUnique({
+      where: { id },
+      include: {
+        user: { select: { fullName: true, email: true } },
+        organization: { select: { name: true } },
+      },
+    });
     if (!membership) throw new NotFoundException('Application not found');
     await this.assertManagesOrg(user, membership.organizationId);
 
@@ -257,7 +265,7 @@ export class MembershipsService {
       }
     }
 
-    return this.prisma.membership.update({
+    const updated = await this.prisma.membership.update({
       where: { id },
       data: {
         status: decision as MembershipStatus,
@@ -266,6 +274,15 @@ export class MembershipsService {
       },
       select: { id: true, status: true },
     });
+
+    void this.mail.membershipDecision({
+      to: membership.user.email,
+      name: membership.user.fullName,
+      organization: membership.organization.name,
+      decision,
+      remarks,
+    });
+    return updated;
   }
 
   /** Signed link to a file: its owner, or an officer/admin who manages that organization. */
